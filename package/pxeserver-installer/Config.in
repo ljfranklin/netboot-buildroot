@@ -1,0 +1,6 @@
+config BR2_PACKAGE_PXESERVER_INSTALLER
+       bool "pxeserver-installer"
+       help
+         An installation helper for use the PXE Server project.
+
+         https://github.com/ljfranklin/pxeserver

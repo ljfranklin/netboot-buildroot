@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+
+set -eu
+
+write_img_and_reboot()
+{
+	netboot_installer="$(cat /proc/cmdline | tr ' ' '\n' | grep '^netboot_installer=' | cut -d'=' -f2-)"
+	if [ -z "${netboot_installer}" ]; then
+		echo "Error: must provide 'netboot_installer' boot arg"
+		exit 1
+	fi
+	installer_json="$(echo "${netboot_installer}" | base64 -d -)"
+
+	disks_json="$(echo "${installer_json}" | jq -c -e '.disks[]')"
+	echo "${disks_json}" | while read -r disk_json; do
+		image_url="$(echo "${disk_json}" | jq -r -e '.url')"
+		device="$(echo "${disk_json}" | jq -r -e '.dest_device')"
+		gzipped="$(echo "${disk_json}" | jq -r '.gzip == true')"
+		if [ "${gzipped}" = "true" ]; then
+			wget -O - "${image_url}" | gunzip > "${device}"
+		else
+			wget -O "${device}" "${image_url}"
+		fi
+		partprobe "${device}" # recreate /dev/ files for new partitions
+
+		mounts_json="$(echo "${disk_json}" | jq -c '.mounts // {} | .[]')"
+		echo "${mounts_json}" | while read -r mount_json; do
+			mnt_dir="$(echo "${mount_json}" | jq -r -e '.path')"
+			partition="$(echo "${mount_json}" | jq -r -e '.partition')"
+			mkdir -p "${mnt_dir}"
+			mount "${partition}" "${mnt_dir}"
+		done
+	done
+
+	files_json="$(echo "${installer_json}" | jq -c '.files // {} | .[]')"
+	echo "${files_json}" | while read -r file_json; do
+		file_url="$(echo "${file_json}" | jq -r -e '.url')"
+		dest="$(echo "${file_json}" | jq -r -e '.dest')"
+		gzipped="$(echo "${file_json}" | jq -r '.gzip == true')"
+
+		mkdir -p "$(dirname "${dest}")"
+		if [ "${gzipped}" = "true" ]; then
+			wget -O - "${file_url}" | gunzip > "${dest}"
+		else
+			wget -O "${dest}" "${file_url}"
+		fi
+	done
+
+	reboot
+}
+
+case "$1" in
+	start)
+		write_img_and_reboot
+		;;
+	stop)
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+esac
