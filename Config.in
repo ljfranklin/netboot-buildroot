@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_NETBOOT_BUILDROOT_PATH/package/pxeserver-installer/Config.in"
