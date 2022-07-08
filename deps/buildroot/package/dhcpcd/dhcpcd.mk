@@ -4,20 +4,22 @@
 #
 ################################################################################
 
-DHCPCD_VERSION = 9.4.0
+DHCPCD_VERSION = 9.4.1
 DHCPCD_SOURCE = dhcpcd-$(DHCPCD_VERSION).tar.xz
 DHCPCD_SITE = http://roy.marples.name/downloads/dhcpcd
 DHCPCD_DEPENDENCIES = host-pkgconf
 DHCPCD_LICENSE = BSD-2-Clause
 DHCPCD_LICENSE_FILES = LICENSE
+DHCPCD_CPE_ID_VENDOR = dhcpcd_project
 
 DHCPCD_CONFIG_OPTS = \
 	--libexecdir=/lib/dhcpcd \
 	--os=linux \
 	--privsepuser=dhcpcd
 
-# AUDIT_ARCH_NDS32 is only available since kernel >= 5.2
-ifeq ($(BR2_nds32):$(BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_2),y:)
+ifeq ($(BR2_PACKAGE_DHCPCD_ENABLE_PRIVSEP),y)
+DHCPCD_CONFIG_OPTS += --enable-privsep
+else
 DHCPCD_CONFIG_OPTS += --disable-privsep
 endif
 
@@ -33,7 +35,7 @@ DHCPCD_CONFIG_OPTS += --enable-static
 endif
 
 ifeq ($(BR2_USE_MMU),)
-DHCPCD_CONFIG_OPTS += --disable-fork --disable-privsep
+DHCPCD_CONFIG_OPTS += --disable-fork
 endif
 
 define DHCPCD_CONFIGURE_CMDS
